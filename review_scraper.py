@@ -1,55 +1,72 @@
 import requests
 from bs4 import BeautifulSoup
+import re
 
-GAME_ID = "632470"
-TYPE = "positivereviews"
-FILTER = "mostrecent"
-PAGE = "1"
-
+GAME_ID = ["632470"]
+TYPE = ["positivereviews", "negativereviews"]
+FILTER = ["mostrecent", "toprated"]
 
 FUNNY = "funny"
 
 # I'm going to discard every review under 5 words because this type of reviews usually are obscure reference to the game and not a proper review
 
-def scrape_reviews():
+def scrape_game(game_id):
+    url = f'https://store.steampowered.com/app/{game_id}/'
+    
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    name = soup.find("div", {"class":"apphub_AppName"})
+    genre = soup.find("span", {"data-panel":'{"flow-children":"row"}'})
 
-    url = f'https://steamcommunity.com/app/{GAME_ID}/{TYPE}/?browsefilter={FILTER}&snr=1_5_100010_&p={PAGE}'
+    print(name.text)
+    print(genre.text)
+    print("\n")
+
+def scrape_reviews(game_id, type, filter):
+
+    url = f'https://steamcommunity.com/app/{game_id}/{type}/?browsefilter={filter}&snr=1_5_100010_&p=1&filterLanguage=english'
     
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     reviews = soup.find_all("div", {"class":"apphub_CardContentMain"})
 
-    print(f"{len(reviews)} REVIEWS ENCOUNTERED\n")
-    n = 0
     funny = "No one has rated this review as funny yet"
     badges = "0"
+    review_count = len(reviews)
     for review in reviews:
         i = 0
         for string in review.stripped_strings:
-            if i == 0:
-                helpfull = string
-            elif i == 1:
-                if FUNNY in string:
-                    funny = string
-                    i-=1
-                else:
-                    badges = string
-            elif i == 2:
-                recommended = string
-            elif i == 3:
-                hours = string
-            elif i == 5:
-                review_text = string
+            match i:
+                case 0:
+                    helpfull = string
+                case 1:
+                    if FUNNY in string:
+                        funny = string
+                        i-=1
+                    else:
+                        badges = string
+                case 2:
+                    recommended = string
+                case 3:
+                    hours = string
+                case 5:
+                    review_text = string
             i += 1
-        print(f"HELLPFUL: {helpfull}")
+        print(f"HELPFULL: {helpfull}")
         print(f"FUNNY: {funny}")
         print(f"BADGES: {badges}")
         print(f"RECOMMENDED: {recommended}")
         print(f"HOURS: {hours}")
         print(f"REVIEW: {review_text}")
         print("\n")
-            
-    
+    return review_count
     
 if __name__ == '__main__':
-    scrape_reviews()
+
+    for game_id in GAME_ID:
+        review_count = 0
+        scrape_game(game_id)
+        for filter in FILTER:
+            for type in TYPE:
+                review_count += scrape_reviews(game_id, type, filter)
+        print(f"{review_count} REVIEWS ENCOUNTERED\n")
